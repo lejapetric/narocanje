@@ -1,5 +1,7 @@
 # Terminko – spletno naročanje za salone
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/lejapetric/narocanje)
+
 ## Zagon (lokalno)
 Potrebuješ Node.js 22.5 ali novejši.
 
