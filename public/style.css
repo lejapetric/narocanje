@@ -281,3 +281,37 @@ code{background:var(--sand-l);padding:2px 7px;border-radius:6px;font-size:13px}c
  .dash-main{padding:18px 16px}.stats{grid-template-columns:1fr 1fr}.cols2,.grid-2-1{grid-template-columns:1fr}
  .week{overflow-x:auto;grid-template-columns:44px repeat(7,minmax(110px,1fr))}
 }
+
+/* Galerija, podnaslov in obvestilo na strani za naročanje */
+.tagline{margin:-4px 0 12px;font:italic 400 20px var(--serif);color:var(--mut)}
+.meta a{display:inline-flex;gap:7px;align-items:center;text-decoration:none}.meta a:hover{color:var(--ink)}
+.bk-head .gallery{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;animation:fadeUp .7s .05s var(--ease) both}
+.bk-head .gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;display:block}
+.bk.compact .bk-head .gallery{display:none}
+.notice{display:flex;gap:10px;align-items:flex-start;background:var(--sand-l);border-radius:var(--r-sm);padding:12px 16px;font-size:14px;color:var(--ink-2);max-width:620px;margin:4px 0 14px}
+.notice .ic{margin-top:1px;color:var(--accent)}
+.gal-edit{display:flex;gap:8px;flex-wrap:wrap}.gal-edit img{width:64px;height:64px;object-fit:cover;border-radius:10px}
+@media (max-width:980px){.bk-head .gallery{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* Slog "Rožnati" (npr. Naja Nails): nežno roza, Cormorant Garamond, temni gumbi */
+.theme-blush{--accent:#c9879e;--ink:#231c1f;--ink-2:#4d3d43;--mut:#7d6b72;--line:#efdde4;--line-2:#e4ccd5;--bg:#fdf8f9;--paper:#fdf8f9;--card:#fff;
+  --sand:#f6d3df;--sand-l:#fbe8ee;--walnut:#8f4f66;--serif:"Cormorant Garamond",Georgia,serif}
+.theme-blush ::selection{background:#f6d3df}
+.theme-blush .topbar{background:rgba(253,248,249,.9)}
+.theme-blush h1,.theme-blush h2,.theme-blush h3{font-weight:600;letter-spacing:.01em}
+.theme-blush .bk-head{text-align:center;align-items:center;padding:34px 0 6px;background:radial-gradient(ellipse at top,#fbe8ee,transparent 70%);border-radius:28px}
+.theme-blush .bk-title h1{font-size:clamp(40px,7vw,72px);letter-spacing:.18em;text-transform:uppercase;line-height:1.05}
+.theme-blush .meta{justify-content:center;letter-spacing:.04em}
+.theme-blush .bk-head .gallery{width:100%;gap:6px}.theme-blush .bk-head .gallery img{border-radius:6px}
+.theme-blush .step-h,.theme-blush .cat-h{font-size:34px}
+.theme-blush .svc-price{font-size:22px;font-weight:600}
+.theme-blush .svc.on{background:#fff7fa}
+.theme-blush .cat-tabs{background:rgba(253,248,249,.92)}
+.theme-blush .cat-tabs a:hover{background:#fbe8ee}
+.theme-blush .notice{background:#fbe8ee}
+.theme-blush .bk .btn:not(.ghost):hover{background:#000}.theme-blush .bk .btn:disabled{background:#e9d6dd}
+.theme-blush .thumb.ph,.theme-blush .svc:nth-child(3n+2) .thumb.ph,.theme-blush .svc:nth-child(3n+3) .thumb.ph{background:#fbe8ee;color:#b06d86}
+.theme-blush .sum-total b{font-weight:600}
+.theme-blush .cover-ph{background:linear-gradient(180deg,#fbe8ee 0 72%,#f6d3df 72%)}
+@media (max-width:980px){.theme-blush .bk-head{padding:22px 0 4px}.theme-blush .bk-title h1{letter-spacing:.12em}}
+@media (max-width:980px){.bk{grid-template-columns:minmax(0,1fr)}.bk-head,.bk-body{min-width:0}}

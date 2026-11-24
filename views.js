@@ -71,6 +71,13 @@ function dashLayout(title, body, { user, provider, active, flash, actions = '' }
     ${flash ? `<div class="flash">${icon('circle-check', 18)}<span>${esc(flash)}</span></div>` : ''}${body}</main></div>`, { bodyClass: 'is-dash' });
 }
 
+// Videz strani za naročanje (izbere ga naročnica v nastavitvah)
+const THEMES = {
+  default: { label: 'Terminko (privzeto)', head: '' },
+  blush: { label: 'Rožnati (nežno roza, elegantna pisava)', head: '<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">' },
+};
+const themeOpts = p => { const t = THEMES[p?.theme] ? p.theme : 'default'; return { bodyClass: 'theme-' + t, head: THEMES[t].head }; };
+
 // Slike so shranjene v MongoDB (GridFS) in se strežejo prek /img/:id
 const imgUrl = id => id ? '/img/' + esc(String(id)) : null;
 
@@ -84,4 +91,4 @@ function cover(p, cls = 'cover') {
   return `<div class="${cls} cover-ph" style="--accent:${esc(p.accentColor)}"><span class="cover-mono">${esc(p.businessName.trim()[0])}</span></div>`;
 }
 
-module.exports = { imgUrl, esc, eur, dur, page, topbar, dashLayout, thumb, cover, icon, serviceIcon, logo, DAYS, DAYS_S, MONTHS, fmtDate };
+module.exports = { THEMES, themeOpts, imgUrl, esc, eur, dur, page, topbar, dashLayout, thumb, cover, icon, serviceIcon, logo, DAYS, DAYS_S, MONTHS, fmtDate };
