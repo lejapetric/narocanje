@@ -32,6 +32,8 @@ app.get('/img/:id', async (req, res) => {
   if (!img) return res.sendStatus(404);
   res.set('Cache-Control', 'public, max-age=31536000, immutable').type(img.contentType).send(img.buffer);
 });
+// Slika iz galerije je lahko tudi slika storitve ali naslovna slika: take ne brišemo
+const inGallery = (p, id) => [...(p.galleryImageIds || []), p.coverImageId].some(g => g && sid(g) === sid(id));
 const saveUpload = file => file ? S().saveImage(file.buffer, file.mimetype, file.originalname) : null;
 
 app.use(async (req, res, next) => {
@@ -180,14 +182,14 @@ app.get('/b/:slug', async (req, res) => {
   res.send(page(p.businessName, `${topbar(req.user)}
   <div class="bk" style="--accent:${esc(p.accentColor)}">
    <div class="bk-head">
-     <div class="bk-title"><h1>${esc(p.businessName)}</h1>
-      <div class="meta"><span>${icon('map-pin', 15)} ${esc(p.address)}</span><span class="${todayR.length ? 'open-now' : ''}">${icon('clock', 15)} ${openTxt}</span>${p.phone ? `<span>${icon('phone', 15)} ${esc(p.phone)}</span>` : ''}</div></div>
-     ${cover(p)}
+     <div class="bk-title"><h1>${esc(p.businessName)}</h1>${p.tagline ? `<p class="tagline">${esc(p.tagline)}</p>` : ''}
+      <div class="meta"><span>${icon('map-pin', 15)} ${esc(p.address)}</span>${p.instagram ? `<a href="https://www.instagram.com/${esc(p.instagram)}/" target="_blank" rel="noopener">${icon('camera', 15)} @${esc(p.instagram)}</a>` : ''}<span class="${todayR.length ? 'open-now' : ''}">${icon('clock', 15)} ${openTxt}</span>${p.phone ? `<span>${icon('phone', 15)} ${esc(p.phone)}</span>` : ''}</div></div>
+     ${p.galleryImageIds?.length ? `<div class="gallery">${p.galleryImageIds.slice(0, 6).map(id => `<img src="${imgUrl(id)}" alt="" loading="lazy">`).join('')}</div>` : cover(p)}
    </div>
    <div class="bk-body">
     <div class="stepper" id="stepper"><div data-s="1" class="on"><i>1</i>Storitve</div><span></span><div data-s="2"><i>2</i>Termin</div><span></span><div data-s="3"><i>3</i>Podatki</div></div>
     <section id="step1">
-      <h2 class="step-h">Izberite <em>storitve</em></h2>${p.description ? `<p class="about">${esc(p.description)}</p>` : ''}
+      <h2 class="step-h">Izberite <em>storitve</em></h2>${p.description ? `<p class="about">${esc(p.description)}</p>` : ''}${p.notice ? `<div class="notice">${icon('info', 18)}<span>${esc(p.notice)}</span></div>` : ''}
       <div class="cat-tabs">${cats.map((c, i) => `<a class="${i ? '' : 'on'}" href="#cat-${esc(slugify(c))}">${esc(c)}</a>`).join('')}</div>
       ${cats.map(c => `<h2 class="cat-h" id="cat-${esc(slugify(c))}">${esc(c)}</h2><div class="svc-list">${services.filter(s => (s.category || 'Storitve') === c).map((s, i) => `
         <label class="svc reveal" style="--i:${i}"><input type="checkbox" value="${sid(s._id)}">${thumb(imgUrl(s.imageId), s.name, 'thumb', s.category)}
@@ -220,11 +222,11 @@ app.get('/b/:slug', async (req, res) => {
      <div id="sumWhen" class="sum-when"></div>
      <div class="sum-total"><span>Skupaj</span><b id="sumTotal">0,00 €</b></div>
      <button class="btn block lg" id="nextBtn" disabled>Naprej</button>
-     <p class="sum-note muted small">Plačilo v salonu. Brezplačna odpoved do ${p.settings.cancelHours} ur prej.</p>
+     <p class="sum-note muted small">${p.notice ? '' : 'Plačilo v salonu. '}Brezplačna odpoved do ${p.settings.cancelHours} ur prej.</p>
    </aside>
   </div>
   <footer class="foot">Naročanje omogoča ${V.logo()}</footer>
-  <script>window.BK=${JSON.stringify(data).replace(/</g, '\\u003c')}</script><script src="/static/book.js"></script>`));
+  <script>window.BK=${JSON.stringify(data).replace(/</g, '\\u003c')}</script><script src="/static/book.js"></script>`, V.themeOpts(p)));
 });
 
 app.get('/api/b/:slug/availability', async (req, res) => {
@@ -289,7 +291,7 @@ function bookingView(b, p, user, msg) {
      <a class="btn ghost" href="/b/${esc(p.slug)}">${icon('rotate-ccw', 16)} Nova rezervacija</a></div>
     ${canCancel ? `<form class="rc-cancel" method="post" action="/r/${b.token}/cancel" onsubmit="return confirm('Res želite odpovedati termin?')"><span class="muted small">Brezplačna odpoved do ${ch} ur pred terminom.</span><button class="link danger">Odpovej termin</button></form>`
       : b.status === 'confirmed' && b.start > now ? `<p class="rc-cancel muted small">Spletna odpoved ni več mogoča. Za spremembe pokličite ${esc(p.phone)}.</p>` : ''}
-   </div></div>`);
+   </div></div>`, V.themeOpts(p));
 }
 async function byToken(token) {
   const b = await S().bookings.findOne({ token: String(token) });
@@ -483,7 +485,7 @@ D.post('/services/save', upload.single('image'), async (req, res) => {
   };
   const existing = b.id ? await S().services.findOne({ _id: oid(b.id), providerId: p._id }) : null;
   if (req.file || (b.remove_image && existing?.imageId)) {
-    if (existing?.imageId) await S().deleteImage(existing.imageId);
+    if (existing?.imageId && !inGallery(p, existing.imageId)) await S().deleteImage(existing.imageId);
     doc.imageId = req.file ? await saveUpload(req.file) : null;
   }
   if (existing) await S().services.updateOne({ _id: existing._id }, { $set: doc });
@@ -492,7 +494,7 @@ D.post('/services/save', upload.single('image'), async (req, res) => {
 });
 D.post('/services/:id/delete', async (req, res) => {
   const s = await S().services.findOne({ _id: oid(req.params.id), providerId: req.provider._id });
-  if (s) { if (s.imageId) await S().deleteImage(s.imageId); await S().services.deleteOne({ _id: s._id }); }
+  if (s) { if (s.imageId && !inGallery(req.provider, s.imageId)) await S().deleteImage(s.imageId); await S().services.deleteOne({ _id: s._id }); }
   flash(req, 'Storitev izbrisana.'); res.redirect('/dash/services');
 });
 
@@ -595,6 +597,13 @@ D.get('/settings', (req, res) => {
    <label class="full">Opis<textarea name="description" rows="3">${esc(p.description)}</textarea></label>
    <label>Naslovna slika ${p.coverImageId ? '<span class="opt">naložena, nova jo zamenja</span>' : ''}<input type="file" name="cover" accept="image/*"></label><label>Barva poudarka<input type="color" name="accent" value="${esc(p.accentColor)}"></label>
    ${p.coverImageId ? `<label class="chk full"><input type="checkbox" name="remove_cover"> Odstrani naslovno sliko</label>` : ''}
+   <h3 class="full">Videz strani za naročanje</h3>
+   <label>Slog strani<select name="theme">${Object.entries(V.THEMES).map(([k, t]) => `<option value="${k}" ${(p.theme || 'default') === k ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label>
+   <label>Podnaslov <span class="opt">npr. gel nohti · biab</span><input name="tagline" value="${esc(p.tagline)}"></label>
+   <label>Instagram <span class="opt">brez @</span><input name="instagram" value="${esc(p.instagram)}"></label>
+   <label>Galerija <span class="opt">${p.galleryImageIds?.length ? `${p.galleryImageIds.length} slik, nove se dodajo` : 'do 6 slik'}</span><input type="file" name="gallery" accept="image/*" multiple></label>
+   ${p.galleryImageIds?.length ? `<div class="full gal-edit">${p.galleryImageIds.map(id => `<img src="${imgUrl(id)}" alt="">`).join('')}</div><label class="chk full"><input type="checkbox" name="clear_gallery"> Odstrani vse slike iz galerije</label>` : ''}
+   <label class="full">Obvestilo za stranke <span class="opt">npr. akontacija, priprava na termin</span><textarea name="notice" rows="2">${esc(p.notice)}</textarea></label>
    <h3 class="full">Pravila naročanja</h3>
    <label>Korak terminov (min)<select name="slot_step">${[10, 15, 20, 30, 60].map(v => `<option ${st.slotStep === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
    <label>Odmor med strankami (min)<input type="number" name="buffer_min" min="0" value="${st.bufferMin}"></label>
@@ -603,18 +612,29 @@ D.get('/settings', (req, res) => {
    <label>Spletna odpoved do (ur pred terminom)<input type="number" name="cancel_hours" min="0" value="${st.cancelHours}"></label>
    <div class="full"><button class="btn">Shrani</button></div></form>`, '/dash/settings');
 });
-D.post('/settings', upload.single('cover'), async (req, res) => {
+D.post('/settings', upload.fields([{ name: 'cover', maxCount: 1 }, { name: 'gallery', maxCount: 6 }]), async (req, res) => {
   const p = req.provider, b = req.body, slug = slugify(b.slug) || p.slug;
   if (await S().providers.findOne({ slug, _id: { $ne: p._id } })) { flash(req, 'Ta povezava je že zasedena.'); return res.redirect('/dash/settings'); }
   const set = {
     businessName: String(b.business_name || p.businessName).trim(), slug, address: String(b.address || ''), phone: String(b.phone || ''), description: String(b.description || ''),
     accentColor: /^#[0-9a-f]{6}$/i.test(b.accent) ? b.accent : p.accentColor,
+    theme: V.THEMES[b.theme] ? b.theme : (p.theme || 'default'), tagline: String(b.tagline || '').slice(0, 120), notice: String(b.notice || '').slice(0, 600),
+    instagram: String(b.instagram || '').trim().replace(/^@/, '').replace(/[^\w.]/g, '').slice(0, 30),
     settings: { slotStep: Number(b.slot_step) || 15, bufferMin: Number(b.buffer_min) || 0, minNoticeHours: Number(b.min_notice_hours) || 0, maxDaysAhead: Number(b.max_days_ahead) || 60, cancelHours: Number(b.cancel_hours) || 0 },
   };
-  if (req.file || (b.remove_cover && p.coverImageId)) {
-    if (p.coverImageId) await S().deleteImage(p.coverImageId);
-    set.coverImageId = req.file ? await saveUpload(req.file) : null;
+  const coverFile = req.files?.cover?.[0], galleryFiles = req.files?.gallery || [];
+  if (coverFile || (b.remove_cover && p.coverImageId)) {
+    if (p.coverImageId && !(p.galleryImageIds || []).some(g => sid(g) === sid(p.coverImageId))) await S().deleteImage(p.coverImageId);
+    set.coverImageId = coverFile ? await saveUpload(coverFile) : null;
   }
+  let gallery = [...(p.galleryImageIds || [])];
+  if (b.clear_gallery) {
+    const used = new Set([sid(set.coverImageId ?? p.coverImageId), ...(await S().services.find({ providerId: p._id }).toArray()).map(x => sid(x.imageId))]);
+    for (const g of gallery) if (!used.has(sid(g))) await S().deleteImage(g);
+    gallery = [];
+  }
+  for (const f of galleryFiles) gallery.push(await saveUpload(f));
+  if (b.clear_gallery || galleryFiles.length) set.galleryImageIds = gallery.slice(-6);
   await S().providers.updateOne({ _id: p._id }, { $set: set });
   flash(req, 'Shranjeno.'); res.redirect('/dash/settings');
 });

@@ -73,6 +73,7 @@ async function seed() {
   await book(lana, ['Barvanje las'], '13:00', 'Tina Golob', '+38631000005');
   await book(lana, ['Žensko striženje'], '16:00', 'Petra Kos', '+38631000002');
   await book(maja, ['Gel lak'], '10:00', 'Nina Zupan', '+38631000003');
+  await require('./naja').ensureNaja();
   console.log(`Demo podatki pripravljeni (primer rezervacij: ${day}).
   Admin:      admin@terminko.si / ${ADMIN_PW}
   Naročnica:  lana@primer.si / geslo1234  → /b/studio-lana

@@ -173,6 +173,7 @@ function verify(pw, stored) {
 // Privzete vrednosti nove naročnice
 const providerDefaults = () => ({
   description: '', address: '', phone: '', email: '', coverImageId: null, accentColor: '#9a7452', weeklyHours: [],
+  theme: 'default', tagline: '', notice: '', instagram: '', galleryImageIds: [],
   settings: { slotStep: 15, bufferMin: 0, minNoticeHours: 2, maxDaysAhead: 60, cancelHours: 24 },
   active: true, createdAt: new Date(),
 });
