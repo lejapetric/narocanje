@@ -1,6 +1,6 @@
 // Obvestila. Trenutno TESTNI način: sporočila se zapišejo v bazo (Admin → Obvestila) in konzolo.
 // Ko izberemo ponudnika (npr. Brevo, Twilio, SMSAPI.si, Mailgun ...), se implementira samo sendEmail/sendSms.
-const { q } = require('./db');
+const { S } = require('./store');
 
 const BASE_URL = process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
 const MODE = process.env.NOTIFY_MODE || 'stub';
@@ -17,8 +17,7 @@ async function sendSms(to, body) {
 async function log(channel, recipient, subject, body, booking, fn) {
   let status;
   try { status = await fn(); } catch (e) { status = 'napaka: ' + e.message; }
-  q.run('INSERT INTO notifications (booking_id, provider_id, channel, recipient, subject, body, status) VALUES (?,?,?,?,?,?,?)',
-    booking?.id ?? null, booking?.provider_id ?? null, channel, recipient, subject, body, status);
+  await S().notifications.insertOne({ bookingId: booking?._id ?? null, providerId: booking?.providerId ?? null, channel, recipient, subject, body, status, createdAt: new Date() });
   console.log(`[${channel.toUpperCase()} → ${recipient}] ${subject || ''} ${body.split('\n')[0]}`);
 }
 
@@ -26,30 +25,30 @@ const fmtDate = s => { const [d, t] = s.split(' '); const [y, m, dd] = d.split('
 const eur = c => (c / 100).toFixed(2).replace('.', ',') + ' €';
 
 function details(b, items) {
-  return items.map(i => `• ${i.name} (${i.start.slice(11)})`).join('\n') + `\nSkupaj: ${eur(b.total_cents)}`;
+  return items.map(i => `• ${i.name} (${i.start.slice(11)})`).join('\n') + `\nSkupaj: ${eur(b.totalCents)}`;
 }
 
-async function bookingCreated(b, items, provider) {
+async function bookingCreated(b, provider) {
   const link = `${BASE_URL}/r/${b.token}`;
-  const txt = `Pozdravljeni ${b.customer_name},\n\nvaša rezervacija pri ${provider.business_name} je potrjena za ${fmtDate(b.start)}.\n${details(b, items)}\n\n${provider.address || ''}\nOgled ali odpoved: ${link}`;
-  if (b.customer_email) await log('email', b.customer_email, `Potrjena rezervacija – ${provider.business_name}`, txt, b, () => sendEmail(b.customer_email, 'Potrjena rezervacija', txt));
-  if (b.customer_phone) await log('sms', b.customer_phone, null, `${provider.business_name}: rezervacija potrjena ${fmtDate(b.start)}. Ogled/odpoved: ${link}`, b, () => sendSms(b.customer_phone, txt));
+  const txt = `Pozdravljeni ${b.customer.name},\n\nvaša rezervacija pri ${provider.businessName} je potrjena za ${fmtDate(b.start)}.\n${details(b, b.items)}\n\n${provider.address || ''}\nOgled ali odpoved: ${link}`;
+  if (b.customer.email) await log('email', b.customer.email, `Potrjena rezervacija – ${provider.businessName}`, txt, b, () => sendEmail(b.customer.email, 'Potrjena rezervacija', txt));
+  if (b.customer.phone) await log('sms', b.customer.phone, null, `${provider.businessName}: rezervacija potrjena ${fmtDate(b.start)}. Ogled/odpoved: ${link}`, b, () => sendSms(b.customer.phone, txt));
   const pPhone = provider.phone;
-  const ptxt = `Nova rezervacija: ${b.customer_name}, ${fmtDate(b.start)} – ${items.map(i => i.name).join(', ')}. Tel: ${b.customer_phone || '-'}`;
+  const ptxt = `Nova rezervacija: ${b.customer.name}, ${fmtDate(b.start)} – ${b.items.map(i => i.name).join(', ')}. Tel: ${b.customer.phone || '-'}`;
   if (pPhone) await log('sms', pPhone, null, ptxt, b, () => sendSms(pPhone, ptxt));
 }
 
 async function bookingCancelled(b, provider, byCustomer) {
-  const txt = `Rezervacija pri ${provider.business_name} za ${fmtDate(b.start)} je odpovedana.`;
-  if (b.customer_email) await log('email', b.customer_email, 'Odpoved rezervacije', txt, b, () => sendEmail(b.customer_email, 'Odpoved rezervacije', txt));
-  if (b.customer_phone && !byCustomer) await log('sms', b.customer_phone, null, txt, b, () => sendSms(b.customer_phone, txt));
-  if (provider.phone && byCustomer) await log('sms', provider.phone, null, `Stranka ${b.customer_name} je odpovedala termin ${fmtDate(b.start)}.`, b, () => sendSms(provider.phone, txt));
+  const txt = `Rezervacija pri ${provider.businessName} za ${fmtDate(b.start)} je odpovedana.`;
+  if (b.customer.email) await log('email', b.customer.email, 'Odpoved rezervacije', txt, b, () => sendEmail(b.customer.email, 'Odpoved rezervacije', txt));
+  if (b.customer.phone && !byCustomer) await log('sms', b.customer.phone, null, txt, b, () => sendSms(b.customer.phone, txt));
+  if (provider.phone && byCustomer) await log('sms', provider.phone, null, `Stranka ${b.customer.name} je odpovedala termin ${fmtDate(b.start)}.`, b, () => sendSms(provider.phone, txt));
 }
 
 async function reminder(b, provider) {
-  const txt = `Opomnik: jutri ${fmtDate(b.start)} imate termin pri ${provider.business_name}. Odpoved: ${BASE_URL}/r/${b.token}`;
-  if (b.customer_phone) await log('sms', b.customer_phone, null, txt, b, () => sendSms(b.customer_phone, txt));
-  else if (b.customer_email) await log('email', b.customer_email, 'Opomnik za termin', txt, b, () => sendEmail(b.customer_email, 'Opomnik', txt));
+  const txt = `Opomnik: jutri ${fmtDate(b.start)} imate termin pri ${provider.businessName}. Odpoved: ${BASE_URL}/r/${b.token}`;
+  if (b.customer.phone) await log('sms', b.customer.phone, null, txt, b, () => sendSms(b.customer.phone, txt));
+  else if (b.customer.email) await log('email', b.customer.email, 'Opomnik za termin', txt, b, () => sendEmail(b.customer.email, 'Opomnik', txt));
 }
 
 module.exports = { bookingCreated, bookingCancelled, reminder, fmtDate, eur };

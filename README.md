@@ -2,40 +2,71 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/lejapetric/narocanje)
 
-## Zagon (lokalno)
-Potrebuješ Node.js 22.5 ali novejši.
+Podatki (naročnice, storitve, stranke, rezervacije in slike) se shranjujejo v **MongoDB**.
+
+## 1. MongoDB Atlas (brezplačna baza, enkrat)
+1. Ustvari račun na [mongodb.com/atlas](https://www.mongodb.com/cloud/atlas/register) in izberi brezplačen cluster **M0** (regija npr. Frankfurt).
+2. **Database Access** → *Add New Database User*: uporabniško ime in geslo (geslo brez posebnih znakov je najlažje).
+3. **Network Access** → *Add IP Address* → `0.0.0.0/0` (Render nima stalnega IP naslova).
+4. **Connect** → *Drivers* → kopiraj povezavo, npr.
+   `mongodb+srv://uporabnik:geslo@cluster0.xxxxx.mongodb.net/terminko?retryWrites=true&w=majority`
+   Pred `?` dopiši ime baze (`/terminko`). Ta niz je `MONGODB_URI`.
+
+## 2. Objava na Render
+1. Klikni **Deploy to Render** zgoraj (ali na render.com *New → Blueprint* in ta repozitorij).
+2. Vpiši `MONGODB_URI` (iz koraka 1) in `ADMIN_PASSWORD` (geslo za admin@terminko.si).
+3. Čez nekaj minut dobiš povezavo `https://terminko-xxxx.onrender.com`.
+
+Ob prvem zagonu, ko je baza prazna, se naložijo demo podatki (dve naročnici z nekaj rezervacijami). Če jih nočeš, nastavi `SEED_DEMO=0`.
+Podatki ostanejo v Atlasu tudi ob ponovnih zagonih in novih verzijah aplikacije. Če aplikacija že teče, v Renderju odpri *Environment*, dodaj `MONGODB_URI` in shrani.
+
+## Zagon lokalno
+Potrebuješ Node.js 20 ali novejši.
 
 ```bash
 npm install
-node seed.js        # demo podatki (POBRIŠE obstoječo bazo)
-node server.js      # http://localhost:3000
+MONGODB_URI="mongodb+srv://..." npm start     # z MongoDB
+npm start                                     # brez MONGODB_URI: baza v pomnilniku, samo za preizkus
+MONGODB_URI="..." node seed.js                # POBRIŠE bazo in naloži demo podatke
 ```
 
 Demo računi:
-- Admin: `admin@terminko.si` / `admin1234` (spremeni z `ADMIN_PASSWORD=... node seed.js`)
-- Naročnica: `lana@primer.si` / `geslo1234` → http://localhost:3000/b/studio-lana
-- Naročnica: `maja@primer.si` / `geslo1234` → http://localhost:3000/b/nohti-maja
+- Admin: `admin@terminko.si` / `admin1234` (ali vrednost `ADMIN_PASSWORD`)
+- Naročnica: `lana@primer.si` / `geslo1234` → `/b/studio-lana`
+- Naročnica: `maja@primer.si` / `geslo1234` → `/b/nohti-maja`
 
-## Nastavitve (spremenljivke okolja)
+## Spremenljivke okolja
 | Spremenljivka | Pomen |
 |---|---|
-| `PORT` | vrata (privzeto 3000) |
-| `BASE_URL` | javni naslov, uporabljen v povezavah v SMS/e-pošti |
-| `SESSION_SECRET` | obvezno nastavi v produkciji |
-| `DB_PATH` | pot do SQLite baze (privzeto `data/app.db`) |
+| `MONGODB_URI` | povezava na MongoDB (Atlas). Brez nje so podatki samo v pomnilniku. |
+| `MONGODB_DB` | ime baze, če ni v `MONGODB_URI` (privzeto `terminko`) |
+| `SESSION_SECRET` | obvezno v produkciji (Render ga ustvari sam) |
+| `ADMIN_PASSWORD` | geslo admina pri prvem zagonu |
+| `SEED_DEMO` | `0` = ob prazni bazi ne naloži demo podatkov |
+| `BASE_URL` | javni naslov za povezave v SMS/e-pošti (na Renderju samodejno) |
 | `NOTIFY_MODE` | `stub` = sporočila se le zapišejo (Admin → Obvestila) |
+| `PORT` | vrata (privzeto 3000) |
 
-## Struktura
+## Zgradba baze
+| Zbirka | Vsebina | Povezave |
+|---|---|---|
+| `users` | prijave (admin, naročnice, stranke z računom) | |
+| `providers` | naročnice: ime, povezava `slug`, naslov, tedenski urnik, pravila | `userId` → users, `coverImageId` → images |
+| `services` | storitve: trajanje, cena, opis, čakalni čas | `providerId` → providers, `imageId` → images |
+| `customers` | stranke, **samostojne** (niso vezane na salon); prepoznane po telefonu/e-pošti | `userId` → users (če ima račun) |
+| `bookings` | rezervacije: kdo, kje, kdaj, katere storitve, cena, status | `providerId`, `customerId`, `items[].serviceId`, `fillsGapOf` → booking |
+| `overrides` | izjeme urnika po dnevih (dopust, drugačen čas) | `providerId` |
+| `blocks` | odsotnosti / blokiran čas | `providerId` |
+| `notifications` | dnevnik poslanih SMS in e-pošte | `bookingId`, `providerId` |
+| `images.files`, `images.chunks` | slike (GridFS) | |
+| `sessions` | prijave uporabnikov | |
+
+Stranka je s salonom povezana samo prek rezervacije. Rezervacija hrani tudi kopijo imena, telefona in e-pošte ter imen in cen storitev, zato zgodovina ostane pravilna, tudi če se storitev kasneje spremeni ali izbriše.
+
+## Datoteke
 - `server.js` – vse poti (javno naročanje, nadzorna plošča naročnice `/dash`, admin `/admin`)
+- `store.js` – povezava z MongoDB, indeksi, slike (GridFS) in testna baza v pomnilniku
 - `avail.js` – izračun prostih terminov, vključno s čakalnim časom in vzporednimi storitvami
 - `notify.js` – e-pošta/SMS (trenutno testni način; tu se priklopi ponudnik)
-- `db.js` – shema baze (SQLite, vgrajen v Node)
+- `seed.js` – demo podatki
 - `public/book.js` – koraki naročanja na strani stranke
-- `uploads/` – naložene slike
-
-## Objava na Render (en klik)
-1. Odpri povezavo **Deploy to Render** spodaj (ali na render.com izberi *New → Blueprint* in ta repozitorij).
-2. Vpiši `ADMIN_PASSWORD` (geslo za admin@terminko.si) in potrdi.
-3. Čez nekaj minut dobiš povezavo `https://terminko-xxxx.onrender.com`. Ob prvem zagonu se naložijo demo podatki.
-
-Brezplačni paket na Renderju nima trajnega diska: ob ponovnem zagonu se baza ponastavi na demo podatke. Za pravo uporabo izberi paket *Starter* in dodaj disk (npr. pot `/var/data`) ter nastavi `DB_PATH=/var/data/app.db` in `UPLOAD_DIR=/var/data/uploads`.

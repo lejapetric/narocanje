@@ -1,7 +1,12 @@
-// Zagon za strežnik: ob prvem zagonu (prazna baza) naloži demo podatke, nato zažene aplikacijo.
-const fs = require('fs'), path = require('path');
-const dbFile = process.env.DB_PATH || path.join(__dirname, 'data', 'app.db');
-if (!fs.existsSync(dbFile) && process.env.SEED_DEMO !== '0') require('./seed');
-const app = require('./server');
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Terminko teče na vratih ${PORT}`));
+// Zagon strežnika: poveže se z MongoDB (MONGODB_URI), ob popolnoma prazni bazi naloži demo podatke, nato zažene aplikacijo.
+const { connect } = require('./store');
+
+(async () => {
+  const store = await connect();
+  console.log(store.kind === 'mongodb' ? `Povezano z MongoDB (baza "${store.db.databaseName}")` : 'Baza v pomnilniku (samo za preizkus)');
+  if (await store.isEmpty() && process.env.SEED_DEMO !== '0') await require('./seed')();
+  const { app, init } = require('./server');
+  init();
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Terminko teče na vratih ${PORT}`));
+})().catch(e => { console.error('Zagon ni uspel:', e.message); process.exit(1); });

@@ -55,14 +55,14 @@ function topbar(user, { minimal = false } = {}) {
 
 function dashLayout(title, body, { user, provider, active, flash, actions = '' } = {}) {
   const items = [['/dash', 'Pregled', 'layout-dashboard'], ['/dash/calendar', 'Koledar', 'calendar-days'], ['/dash/bookings', 'Rezervacije', 'list-checks'],
-    ['/dash/services', 'Storitve', 'tag'], ['/dash/hours', 'Delovni čas', 'clock'], ['/dash/settings', 'Profil in nastavitve', 'settings']];
-  const adminItems = [['/admin', 'Naročnice', 'building-2'], ['/admin/bookings', 'Vse rezervacije', 'calendar-range'], ['/admin/notifications', 'Obvestila', 'bell'], ['/admin/users', 'Uporabniki', 'users']];
+    ['/dash/services', 'Storitve', 'tag'], ['/dash/customers', 'Stranke', 'contact'], ['/dash/hours', 'Delovni čas', 'clock'], ['/dash/settings', 'Profil in nastavitve', 'settings']];
+  const adminItems = [['/admin', 'Naročnice', 'building-2'], ['/admin/bookings', 'Vse rezervacije', 'calendar-range'], ['/admin/customers', 'Stranke', 'contact'], ['/admin/notifications', 'Obvestila', 'bell'], ['/admin/users', 'Uporabniki', 'users']];
   const link = ([h, l, i]) => `<a class="${active === h ? 'on' : ''}" href="${h}">${icon(i, 18)}<span>${l}</span></a>`;
   const nav = `<aside class="side">
     <div class="side-top">${logo()}</div>
     ${user.role === 'admin' ? `<div class="side-sec">Administracija</div>${adminItems.map(link).join('')}` : ''}
     ${provider ? `<div class="side-sec">${user.role === 'admin' ? 'Urejaš naročnico' : 'Moj salon'}</div>
-      <div class="side-prov"><span class="mono" style="--accent:${esc(provider.accent)}">${esc(provider.business_name.trim()[0])}</span><div><b>${esc(provider.business_name)}</b><small>/b/${esc(provider.slug)}</small></div></div>
+      <div class="side-prov"><span class="mono" style="--accent:${esc(provider.accentColor)}">${esc(provider.businessName.trim()[0])}</span><div><b>${esc(provider.businessName)}</b><small>/b/${esc(provider.slug)}</small></div></div>
       ${items.map(link).join('')}
       <a href="/b/${esc(provider.slug)}" target="_blank">${icon('external-link', 18)}<span>Stran za naročanje</span></a>` : ''}
     <div class="side-foot"><span class="avatar">${esc((user.name || user.email).trim()[0].toUpperCase())}</span><div><b>${esc(user.name || '')}</b><small>${esc(user.email)}</small></div><a href="/logout" title="Odjava">${icon('log-out', 18)}</a></div>
@@ -71,14 +71,17 @@ function dashLayout(title, body, { user, provider, active, flash, actions = '' }
     ${flash ? `<div class="flash">${icon('circle-check', 18)}<span>${esc(flash)}</span></div>` : ''}${body}</main></div>`, { bodyClass: 'is-dash' });
 }
 
+// Slike so shranjene v MongoDB (GridFS) in se strežejo prek /img/:id
+const imgUrl = id => id ? '/img/' + esc(String(id)) : null;
+
 // Slika storitve ali elegantna ikona
 function thumb(img, name, cls = 'thumb', category = '') {
   if (img) return `<img class="${cls}" src="${esc(img)}" alt="">`;
   return `<div class="${cls} ph">${icon(serviceIcon(category + ' ' + name), cls.includes('sm') ? 18 : 26)}</div>`;
 }
 function cover(p, cls = 'cover') {
-  if (p.cover_image) return `<img class="${cls}" src="${esc(p.cover_image)}" alt="">`;
-  return `<div class="${cls} cover-ph" style="--accent:${esc(p.accent)}"><span class="cover-mono">${esc(p.business_name.trim()[0])}</span></div>`;
+  if (p.coverImageId) return `<img class="${cls}" src="${imgUrl(p.coverImageId)}" alt="">`;
+  return `<div class="${cls} cover-ph" style="--accent:${esc(p.accentColor)}"><span class="cover-mono">${esc(p.businessName.trim()[0])}</span></div>`;
 }
 
-module.exports = { esc, eur, dur, page, topbar, dashLayout, thumb, cover, icon, serviceIcon, logo, DAYS, DAYS_S, MONTHS, fmtDate };
+module.exports = { imgUrl, esc, eur, dur, page, topbar, dashLayout, thumb, cover, icon, serviceIcon, logo, DAYS, DAYS_S, MONTHS, fmtDate };

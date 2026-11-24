@@ -23,9 +23,9 @@
   }
   function summary() {
     const svcs = sel.map(id => B.services.find(s => s.id === id));
-    $('#sumItems').innerHTML = svcs.length ? svcs.map(s => `<div class="line"><span>${esc(s.name)}<small class="muted">${dur(s.duration_min)}</small></span><span>${eur(s.price_cents)}</span></div>`).join('') : '<div class="sum-empty">Izberite eno ali več storitev.</div>';
-    $('#sumTotal').textContent = eur(svcs.reduce((a, s) => a + s.price_cents, 0));
-    const total = svcs.reduce((a, s) => a + s.duration_min, 0);
+    $('#sumItems').innerHTML = svcs.length ? svcs.map(s => `<div class="line"><span>${esc(s.name)}<small class="muted">${dur(s.durationMin)}</small></span><span>${eur(s.priceCents)}</span></div>`).join('') : '<div class="sum-empty">Izberite eno ali več storitev.</div>';
+    $('#sumTotal').textContent = eur(svcs.reduce((a, s) => a + s.priceCents, 0));
+    const total = svcs.reduce((a, s) => a + s.durationMin, 0);
     $('#sumWhen').innerHTML = (day && time && step >= 2 ? `<div><b>${DL[wd(day)]}, ${fmt(day)}</b><span>ob ${time}</span></div>` : '') + (total ? `<small class="muted">Trajanje ${dur(total)}</small>` : '');
     const nb = $('#nextBtn');
     nb.hidden = step === 4;
@@ -33,7 +33,7 @@
     nb.textContent = step === 3 ? 'Potrdi rezervacijo' : 'Nadaljuj';
   }
   $$('.svc input').forEach(cb => cb.addEventListener('change', () => {
-    const id = Number(cb.value);
+    const id = cb.value;
     sel = cb.checked ? [...sel, id] : sel.filter(x => x !== id);
     cb.closest('.svc').classList.toggle('on', cb.checked);
     day = time = null; summary();
